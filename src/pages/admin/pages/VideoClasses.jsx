@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchCourses } from "../../../store/slices/coursesSlice";
+import { fetchCourses, fetchAdminCourseById } from "../../../store/slices/coursesSlice";
 import { updateCourseAsync } from "../../../store/slices/adminSlice";
 import { Link, useNavigate } from "react-router-dom";
 import { Video, Calendar, ExternalLink, Clock, Play, X, Monitor } from "lucide-react";
@@ -129,8 +129,12 @@ export default function VideoClasses() {
             if (meetLink && meetLink.trim()) {
                 // Update the course with the Meet link
                 try {
-                    // Find the course
-                    const course = courses.find(c => c._id === selectedClass.courseId);
+                    // the listed copy has the quiz answer keys projected out, so
+                    // re-sending its syllabus would strip them; re-read the course
+                    // through the admin endpoint and edit that
+                    const course = await dispatch(
+                        fetchAdminCourseById(selectedClass.courseId)
+                    ).unwrap();
                     if (!course) {
                         alert("Course not found");
                         return;

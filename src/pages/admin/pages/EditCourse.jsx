@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchCourseById } from "../../../store/slices/coursesSlice";
+import { fetchAdminCourseById } from "../../../store/slices/coursesSlice";
 import { useNavigate, useParams } from "react-router-dom";
 import { updateCourseAsync } from "../../../store/slices/adminSlice";
 
@@ -25,7 +25,7 @@ export default function EditCourse() {
 
     useEffect(() => {
         if (!currentCourse || currentCourse._id !== id) {
-            dispatch(fetchCourseById(id));
+            dispatch(fetchAdminCourseById(id));
         }
     }, [dispatch, id, currentCourse]);
 

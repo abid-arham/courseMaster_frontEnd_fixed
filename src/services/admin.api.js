@@ -1,5 +1,7 @@
 import api from "./api";
 
+// full course including the quiz answer key — the public read projects it out
+export const getAdminCourseById = (id) => api.get(`/admin/courses/${id}`);
 export const createCourse = (payload) => api.post("/admin/courses", payload);
 export const updateCourse = (id, payload) => api.patch(`/admin/courses/${id}`, payload);
 export const deleteCourse = (id) => api.delete(`/admin/courses/${id}`);

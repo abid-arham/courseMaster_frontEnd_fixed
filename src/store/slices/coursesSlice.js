@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { getCourses, getCourseById } from "../../services/courses.api";
+import { getAdminCourseById } from "../../services/admin.api";
 
 export const fetchCourses = createAsyncThunk(
     "courses/fetchCourses",
@@ -18,6 +19,21 @@ export const fetchCourseById = createAsyncThunk(
     async (id, { rejectWithValue }) => {
         try {
             const res = await getCourseById(id);
+            return res.data;
+        } catch (err) {
+            return rejectWithValue(err.response?.data?.message || "Course not found");
+        }
+    }
+);
+
+// admin editors must hydrate from the unredacted course: the public read
+// strips `syllabus.lessons.quiz.correctIndex`, and saving a form built from
+// that would push quizzes back with no answers (and now fails validation)
+export const fetchAdminCourseById = createAsyncThunk(
+    "courses/fetchAdminCourseById",
+    async (id, { rejectWithValue }) => {
+        try {
+            const res = await getAdminCourseById(id);
             return res.data;
         } catch (err) {
             return rejectWithValue(err.response?.data?.message || "Course not found");
@@ -84,6 +100,18 @@ const coursesSlice = createSlice({
                 state.currentCourse = action.payload;
             })
             .addCase(fetchCourseById.rejected, (state, action) => {
+                state.detailLoading = false;
+                state.error = action.payload;
+            })
+            .addCase(fetchAdminCourseById.pending, (state) => {
+                state.detailLoading = true;
+                state.error = null;
+            })
+            .addCase(fetchAdminCourseById.fulfilled, (state, action) => {
+                state.detailLoading = false;
+                state.currentCourse = action.payload;
+            })
+            .addCase(fetchAdminCourseById.rejected, (state, action) => {
                 state.detailLoading = false;
                 state.error = action.payload;
             });
