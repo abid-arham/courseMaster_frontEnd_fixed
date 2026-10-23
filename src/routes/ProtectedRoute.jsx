@@ -4,30 +4,32 @@ import { getToken } from "../utils/auth";
 import { getMe } from "../services/auth.api";
 
 export default function ProtectedRoute({ children }) {
-  const [isValid, setIsValid] = useState(null);
   const token = getToken();
+  // null = still verifying with the server
+  const [isValid, setIsValid] = useState(null);
 
   useEffect(() => {
-    // Check if dev bypass is enabled for testing/grading protected routes
-    const isBypass = localStorage.getItem("dev_bypass") === "true" || window.location.search.includes("bypass=true");
-    if (isBypass) {
-      setIsValid(true);
-      return;
-    }
+    if (!token) return;
 
-    if (!token) {
-      setIsValid(false);
-      return;
-    }
-
-    // Verify token is valid
+    let cancelled = false;
+    // the server is the only authority on whether the token is usable
     getMe()
-      .then(() => setIsValid(true))
+      .then(() => {
+        if (!cancelled) setIsValid(true);
+      })
       .catch(() => {
-        // Fallback: if token exists but network/server check fails, still allow if token exists
-        setIsValid(!!token);
+        if (!cancelled) setIsValid(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
+
+  // no token at all: nothing to verify
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
 
   if (isValid === null) {
     return (

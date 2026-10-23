@@ -8,13 +8,15 @@ import { fetchMyEnrollments } from "../store/slices/enrollmentSlice";
 
 export default function MainLayout() {
     const dispatch = useDispatch();
-    const { token, isAuthenticated } = useSelector((state) => state.auth);
+    const { token, user, isAuthenticated } = useSelector((state) => state.auth);
 
+    // isAuthenticated starts true whenever a token is in storage, so keying off
+    // it here meant the profile was never loaded after a page refresh
     useEffect(() => {
-        if (token && !isAuthenticated) {
+        if (token && !user) {
             dispatch(getMeAsync());
         }
-    }, [token, isAuthenticated, dispatch]);
+    }, [token, user, dispatch]);
 
     useEffect(() => {
         if (isAuthenticated) {
