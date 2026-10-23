@@ -1,13 +1,11 @@
-import { useEffect, useState, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { fetchMyEnrollments } from "../../store/slices/enrollmentSlice";
+import { useState, useRef } from "react";
+import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { getQuizStats } from "../../services/quiz.api";
 import { getAssignmentStats } from "../../services/assignment.api";
 import { getCourseById } from "../../services/courses.api";
 
 export default function StudentDashboard() {
-    const dispatch = useDispatch();
     const { enrollments, loading, error } = useSelector((state) => state.enrollment);
     const { currentCourse } = useSelector((state) => state.courses);
 
@@ -17,10 +15,6 @@ export default function StudentDashboard() {
 
     // Cache for lesson title lookups to avoid repeated loops
     const lessonTitleCache = useRef({});
-
-    useEffect(() => {
-        dispatch(fetchMyEnrollments());
-    }, [dispatch]);
 
     // Create lesson title lookup map from course data (optimized)
     const createLessonMap = (courseData) => {
@@ -258,7 +252,7 @@ export default function StudentDashboard() {
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-2xl sm:text-3xl font-bold text-primary">
-                                                    {Math.round((enrollment.progress?.completedLessons?.length / (stats?.courseData?.syllabus?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0))) * 100)}%
+                                                    {enrollment.progress?.percent ?? 0}%
                                                 </p>
                                             </div>
                                         </div>
@@ -299,15 +293,10 @@ export default function StudentDashboard() {
                                                     <div className="flex justify-end mb-2">
                                                         <button
                                                             onClick={() => handleRefreshStats(courseId)}
-                                                            disabled={isLoading}
                                                             className="btn btn-sm btn-outline btn-circle"
                                                             title="Refresh Stats"
                                                         >
-                                                            {isLoading ? (
-                                                                <span className="loading loading-spinner loading-xs"></span>
-                                                            ) : (
-                                                                "🔄"
-                                                            )}
+                                                            🔄
                                                         </button>
                                                     </div>
 
@@ -364,7 +353,7 @@ export default function StudentDashboard() {
                                                     {/* Quiz Marks */}
                                                     {stats.quizStats?.submissions && stats.quizStats.submissions.length > 0 ? (
                                                         <div className="card bg-base-200">
-                                                            <div className="card-body p-3 sm:p-4 sm:p-6">
+                                                            <div className="card-body p-3 sm:p-6">
                                                                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
                                                                     <h3 className="card-title text-base sm:text-lg">📝 Quiz Marks</h3>
                                                                     <span className="badge badge-primary badge-sm sm:badge-lg">
@@ -415,7 +404,7 @@ export default function StudentDashboard() {
                                                     {/* Assignment Marks */}
                                                     {stats.assignmentStats?.submissions && stats.assignmentStats.submissions.length > 0 && (
                                                         <div className="card bg-base-200">
-                                                            <div className="card-body p-3 sm:p-4 sm:p-6">
+                                                            <div className="card-body p-3 sm:p-6">
                                                                 <h3 className="card-title text-base sm:text-lg mb-3 sm:mb-4">📄 Assignment Marks</h3>
                                                                 <div className="space-y-3">
                                                                     {stats.assignmentStats.submissions.map((assignment, idx) => {
@@ -499,7 +488,7 @@ export default function StudentDashboard() {
                                                 </>
                                             ) : (
                                                 <div className="text-center py-4 text-base-content/70">
-                                                    Click "View Details" to load statistics
+                                                    Click "Details" to load statistics
                                                 </div>
                                             )}
                                         </div>
