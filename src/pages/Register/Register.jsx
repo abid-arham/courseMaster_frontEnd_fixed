@@ -93,8 +93,9 @@ export default function Register() {
                                 type="password"
                                 value={form.password}
                                 onChange={handleChange}
-                                placeholder="Create a password"
+                                placeholder="Create a password (min 6 characters)"
                                 className="input input-bordered w-full focus:input-primary"
+                                minLength={6}
                                 required
                             />
                         </div>

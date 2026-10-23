@@ -30,9 +30,11 @@ export default function CourseDetails() {
         }
     }, [token, user, dispatch]);
 
-    const isCreator = user && currentCourse && user._id === currentCourse.instructorId;
+    // the Course model stores only a free-text `instructorName` — there is no
+    // `instructorId`, so the old creator check was always false. Admins are the
+    // only accounts that cannot self-enrol.
     const isAdmin = user && user.role === "admin";
-    const cannotEnroll = isAdmin || isCreator;
+    const cannotEnroll = isAdmin;
 
     const alreadyEnrolled = !!myEnrollments?.find((e) => e.course?._id === id);
 
@@ -42,7 +44,8 @@ export default function CourseDetails() {
             try {
                 await dispatch(getMeAsync()).unwrap();
             } catch (err) {
-                // ignore, will redirect to login below
+                // not fatal — the redirect to login below handles it
+                console.error("Could not refresh profile:", err);
             }
         }
 
@@ -113,7 +116,7 @@ export default function CourseDetails() {
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
                             backgroundClip: 'text'
-                        }}>৳ {course.price * 100}</p>
+                        }}>৳ {course.price?.toLocaleString()}</p>
 
                         <div>
                             {isAdmin ? (
