@@ -23,7 +23,13 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // components rendered only through JSX are not recognised as "used"
+      // without eslint-plugin-react, so component-cased identifiers are
+      // exempted as arguments too (e.g. an `Icon` passed as a prop)
+      'no-unused-vars': [
+        'error',
+        { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[A-Z_]' },
+      ],
     },
   },
 ])
