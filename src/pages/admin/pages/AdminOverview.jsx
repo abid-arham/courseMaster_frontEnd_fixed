@@ -24,7 +24,6 @@ import {
     Users,
     BarChart3,
     Video,
-    Settings,
     TrendingUp,
 } from "lucide-react";
 
@@ -34,6 +33,7 @@ export default function AdminOverview() {
     const { enrollments, assignments } = useSelector((state) => state.admin);
     const [analytics, setAnalytics] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [analyticsError, setAnalyticsError] = useState(null);
 
     useEffect(() => {
         dispatch(fetchEnrollments());
@@ -44,10 +44,14 @@ export default function AdminOverview() {
     const loadAnalytics = async () => {
         try {
             setLoading(true);
+            setAnalyticsError(null);
             const res = await getAnalytics();
             setAnalytics(res.data);
         } catch (err) {
             console.error("Failed to load analytics:", err);
+            setAnalyticsError(
+                err.response?.data?.message || "Failed to load analytics"
+            );
         } finally {
             setLoading(false);
         }
@@ -133,13 +137,20 @@ export default function AdminOverview() {
     ];
 
     // Enrollment by course (top 5)
-    const courseEnrollmentData = analytics?.topCourses?.slice(0, 5).map((course) => ({
-        name: course.courseTitle?.substring(0, 15) || "Unknown",
-        enrollments: course.count,
+    const courseEnrollmentData = analytics?.enrollmentsByCourse?.slice(0, 5).map((course) => ({
+        name: course.courseName?.substring(0, 15) || "Unknown",
+        enrollments: course.enrollments,
     })) || [];
 
     return (
         <div className="space-y-4 sm:space-y-6">
+            {analyticsError && (
+                <div role="alert" className="alert alert-error">
+                    <span>{analyticsError}</span>
+                    <button onClick={loadAnalytics} className="btn btn-sm">Retry</button>
+                </div>
+            )}
+
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h1 className="page-heading">Admin Dashboard Overview</h1>
                 <div className="badge badge-primary badge-lg gap-2">

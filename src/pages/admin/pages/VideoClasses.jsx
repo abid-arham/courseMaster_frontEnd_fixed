@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchCourses, fetchCourseById } from "../../../store/slices/coursesSlice";
+import { fetchCourses } from "../../../store/slices/coursesSlice";
 import { updateCourseAsync } from "../../../store/slices/adminSlice";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Video, Calendar, ExternalLink, Clock, Play, X, Monitor } from "lucide-react";
 
 export default function VideoClasses() {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const { courses, loading } = useSelector((state) => state.courses);
-    const { updating } = useSelector((state) => state.admin);
+    const { creating } = useSelector((state) => state.admin);
     const [filter, setFilter] = useState("all"); // all, upcoming, past
     const [showStartClassModal, setShowStartClassModal] = useState(false);
     const [selectedClass, setSelectedClass] = useState(null);
@@ -101,7 +102,7 @@ export default function VideoClasses() {
             alert("Zoom meeting page opened. After creating the meeting, copy the meeting link and paste it in the course edit page.");
             setShowStartClassModal(false);
             // Navigate to edit course page
-            window.location.href = `/admin/courses/edit/${selectedClass.courseId}`;
+            navigate(`/admin/courses/edit/${selectedClass.courseId}`);
         } else {
             // No class selected - just open Zoom
             alert("Zoom meeting page opened. After creating the meeting, copy the meeting link and add it to a course lesson in the course edit page.");
@@ -142,7 +143,8 @@ export default function VideoClasses() {
                                 return {
                                     ...lesson,
                                     liveClassLink: meetLink.trim(),
-                                    liveClassDate: new Date().toISOString()
+                                    // keep whatever schedule the class already had
+                                    liveClassDate: lesson.liveClassDate || new Date().toISOString()
                                 };
                             }
                             return lesson;
@@ -404,7 +406,7 @@ export default function VideoClasses() {
                                 {/* Google Meet Option */}
                                 <button
                                     onClick={handleMeet}
-                                    disabled={updating}
+                                    disabled={creating}
                                     className="btn btn-outline btn-lg w-full justify-start gap-3 hover:btn-info"
                                 >
                                     <div className="flex items-center gap-3">

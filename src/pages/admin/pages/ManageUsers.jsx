@@ -9,35 +9,23 @@ export default function ManageUsers() {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [actionLoading, setActionLoading] = useState(null); // userId that's being acted upon
+    const [refreshing, setRefreshing] = useState(false); // background refetch after an action
     const [showActions, setShowActions] = useState(null); // userId for which actions menu is shown
 
     const { user } = useSelector((state) => state.auth);
-    const [currentUser, setCurrentUser] = useState(null);
 
-    useEffect(() => {
-        // Get current user info
-        const loadCurrentUser = async () => {
-            try {
-                const { getMe } = await import("../../../services/auth.api");
-                const res = await getMe();
-                setCurrentUser(res.data);
-            } catch (err) {
-                console.error("Failed to load current user:", err);
-            }
-        };
-        loadCurrentUser();
-    }, []);
-
-    const fetchUsers = async () => {
+    const fetchUsers = async ({ background = false } = {}) => {
         try {
-            setLoading(true);
+            if (background) setRefreshing(true);
+            else setLoading(true);
             setError(null);
             const res = await getAllUsers();
             setUsers(res.data || []);
         } catch (err) {
             setError(err.response?.data?.message || "Failed to load users");
         } finally {
-            setLoading(false);
+            if (background) setRefreshing(false);
+            else setLoading(false);
         }
     };
 
@@ -80,7 +68,7 @@ export default function ManageUsers() {
             setError(null);
             await deleteUser(userId);
             setSuccess(`User "${userName}" deleted successfully`);
-            await fetchUsers();
+            await fetchUsers({ background: true });
             setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
             setError(err.response?.data?.message || "Failed to delete user");
@@ -100,7 +88,7 @@ export default function ManageUsers() {
             setError(null);
             await updateUserRole(userId, "admin");
             setSuccess(`"${userName}" is now an admin`);
-            await fetchUsers();
+            await fetchUsers({ background: true });
             setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
             setError(err.response?.data?.message || "Failed to update user role");
@@ -120,7 +108,7 @@ export default function ManageUsers() {
             setError(null);
             await updateUserRole(userId, "student");
             setSuccess(`"${userName}" is now a student`);
-            await fetchUsers();
+            await fetchUsers({ background: true });
             setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
             setError(err.response?.data?.message || "Failed to update user role");
@@ -141,7 +129,7 @@ export default function ManageUsers() {
             setError(null);
             await toggleBanUser(userId);
             setSuccess(`User "${userName}" ${action === "ban" ? "banned" : "unbanned"} successfully`);
-            await fetchUsers();
+            await fetchUsers({ background: true });
             setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
             setError(err.response?.data?.message || `Failed to ${action} user`);
@@ -152,7 +140,7 @@ export default function ManageUsers() {
     };
 
     const isCurrentUser = (userId) => {
-        const currentUserId = currentUser?._id || currentUser?.id || user?._id || user?.id;
+        const currentUserId = user?._id || user?.id;
         return currentUserId === userId;
     };
 
@@ -166,7 +154,12 @@ export default function ManageUsers() {
 
     return (
         <div className="space-y-4 sm:space-y-6">
-            <h1 className="page-heading">Manage Users</h1>
+            <div className="flex items-center gap-3">
+                <h1 className="page-heading">Manage Users</h1>
+                {refreshing && (
+                    <span className="loading loading-spinner loading-sm" aria-label="Refreshing users"></span>
+                )}
+            </div>
 
             {success && (
                 <div className="alert alert-success shadow-lg">
@@ -213,7 +206,7 @@ export default function ManageUsers() {
                                                 }`}
                                             >
                                                 <td className="font-semibold">{userItem.name}</td>
-                                                <td style={{ color: '#1e293b' }}>{userItem.email}</td>
+                                                <td>{userItem.email}</td>
                                                 <td>
                                                     <span
                                                         className={`badge badge-lg font-semibold ${

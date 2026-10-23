@@ -93,16 +93,30 @@ const adminSlice = createSlice({
                 state.creating = false;
                 state.error = action.payload;
             })
+            // without a pending case the in-flight flag never set, so update and
+            // delete buttons stayed enabled and could be double-submitted
+            .addCase(updateCourseAsync.pending, (state) => {
+                state.creating = true;
+                state.error = null;
+            })
             .addCase(updateCourseAsync.fulfilled, (state) => {
+                state.creating = false;
                 state.success = "Course updated successfully!";
             })
             .addCase(updateCourseAsync.rejected, (state, action) => {
+                state.creating = false;
                 state.error = action.payload;
             })
+            .addCase(deleteCourseAsync.pending, (state) => {
+                state.creating = true;
+                state.error = null;
+            })
             .addCase(deleteCourseAsync.fulfilled, (state) => {
+                state.creating = false;
                 state.success = "Course deleted successfully!";
             })
             .addCase(deleteCourseAsync.rejected, (state, action) => {
+                state.creating = false;
                 state.error = action.payload;
             })
             .addCase(fetchEnrollments.pending, (state) => {

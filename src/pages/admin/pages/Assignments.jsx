@@ -344,7 +344,7 @@ export default function Assignments() {
                                                 </a>
                                             ) : (
                                                 <span className="text-xs truncate block" title={assign.answer}>
-                                                    📄 {assign.answer.substring(0, 30)}...
+                                                    📄 {(assign.answer || "").substring(0, 30)}{assign.answer?.length > 30 ? "..." : ""}
                                                 </span>
                                             )}
                                         </td>
@@ -376,7 +376,7 @@ export default function Assignments() {
                                                         onClick={() => startReview(assign._id)}
                                                         disabled={reviewingId === assign._id}
                                                     >
-                                                        {reviewingId === assign._id ? (
+                                                        {actionLoading && reviewingId === assign._id ? (
                                                             <span className="loading loading-spinner loading-xs"></span>
                                                         ) : (
                                                             "Review"
@@ -388,7 +388,7 @@ export default function Assignments() {
                                                         onClick={() => startReview(assign._id)}
                                                         disabled={reviewingId === assign._id}
                                                     >
-                                                        {reviewingId === assign._id ? (
+                                                        {actionLoading && reviewingId === assign._id ? (
                                                             <span className="loading loading-spinner loading-xs"></span>
                                                         ) : (
                                                             "Edit Review"

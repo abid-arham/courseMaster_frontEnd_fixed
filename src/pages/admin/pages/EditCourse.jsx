@@ -9,7 +9,7 @@ export default function EditCourse() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const { currentCourse, detailLoading } = useSelector((state) => state.courses);
+    const { currentCourse, detailLoading, error: detailError } = useSelector((state) => state.courses);
     const { creating, error } = useSelector((state) => state.admin);
 
     const [form, setForm] = useState({
@@ -29,8 +29,11 @@ export default function EditCourse() {
         }
     }, [dispatch, id, currentCourse]);
 
+    // seeds the editable form from the fetched course — a deliberate
+    // server-data-into-local-form sync, which this rule cannot distinguish
     useEffect(() => {
         if (currentCourse) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setForm({
                 title: currentCourse.title || "",
                 description: currentCourse.description || "",
@@ -38,8 +41,9 @@ export default function EditCourse() {
                 price: currentCourse.price || 0,
                 category: currentCourse.category || "",
                 tags: (currentCourse.tags || []).join(", "),
-                batches: currentCourse.batches || [],
-                syllabus: currentCourse.syllabus || [],
+                // cloned so nested edits never mutate the object held in Redux
+                batches: structuredClone(currentCourse.batches || []),
+                syllabus: structuredClone(currentCourse.syllabus || []),
             });
         }
     }, [currentCourse]);
@@ -71,7 +75,7 @@ export default function EditCourse() {
         });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         const payload = {
@@ -91,17 +95,29 @@ export default function EditCourse() {
             syllabus: form.syllabus,
         };
 
-        dispatch(updateCourseAsync({ id, data: payload })).then((res) => {
-            if (!res.error) {
-                navigate("/admin/courses");
-            }
-        });
+        const res = await dispatch(updateCourseAsync({ id, data: payload }));
+        if (updateCourseAsync.fulfilled.match(res)) {
+            navigate("/admin/courses");
+        }
     };
 
     if (detailLoading) {
         return (
             <div className="flex justify-center py-12">
                 <span className="loading loading-spinner loading-lg"></span>
+            </div>
+        );
+    }
+
+    // without this the form rendered empty and "Update Course" would submit
+    // blank values over the existing record
+    if (!currentCourse) {
+        return (
+            <div role="alert" className="alert alert-error">
+                <span>{detailError || "Course not found."}</span>
+                <button onClick={() => navigate("/admin/courses")} className="btn btn-sm">
+                    Back to courses
+                </button>
             </div>
         );
     }
@@ -389,7 +405,7 @@ export default function EditCourse() {
                                                                             if (mIdx === modIdx) {
                                                                                 const newLessons = mod.lessons.map((les, lIdx) => {
                                                                                     if (lIdx === lesIdx) {
-                                                                                        const { liveClassLink, liveClassDate, ...rest } = les;
+                                                                                        const { liveClassLink: _link, liveClassDate: _date, ...rest } = les;
                                                                                         return rest;
                                                                                     }
                                                                                     return les;
@@ -498,7 +514,7 @@ export default function EditCourse() {
                                                                             if (mIdx === modIdx) {
                                                                                 const newLessons = mod.lessons.map((les, lIdx) => {
                                                                                     if (lIdx === lesIdx) {
-                                                                                        const { assignmentPrompt, ...rest } = les;
+                                                                                        const { assignmentPrompt: _prompt, ...rest } = les;
                                                                                         return rest;
                                                                                     }
                                                                                     return les;

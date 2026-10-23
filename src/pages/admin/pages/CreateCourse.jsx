@@ -1,12 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { createCourseAsync } from "../../../store/slices/adminSlice";
+import { createCourseAsync, clearSuccess } from "../../../store/slices/adminSlice";
 import { useNavigate } from "react-router-dom";
 
 export default function CreateCourse() {
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const { creating, success, error } = useSelector((state) => state.admin);
+    // `success` is shared across create/update/delete, so a message left over
+    // from another page would otherwise replace this form on arrival
+    const [justCreated, setJustCreated] = useState(false);
+
+    useEffect(() => {
+        dispatch(clearSuccess());
+    }, [dispatch]);
 
     const [form, setForm] = useState({
         title: "",
@@ -65,14 +72,16 @@ export default function CreateCourse() {
             syllabus: form.syllabus,
         };
 
-        dispatch(createCourseAsync(payload)).then((result) => {
-            if (!result.payload?.message && !error) {
-                setTimeout(() => navigate("/admin/courses"), 1500);
-            }
-        });
+        const result = await dispatch(createCourseAsync(payload));
+        // on rejection rejectWithValue makes payload a string, so the old
+        // `!result.payload?.message` check passed and navigated away on failure
+        if (createCourseAsync.fulfilled.match(result)) {
+            setJustCreated(true);
+            setTimeout(() => navigate("/admin/courses"), 1500);
+        }
     };
 
-    if (success) {
+    if (justCreated && success) {
         return (
             <div className="alert alert-success">
                 <span>{success}</span>
@@ -363,7 +372,7 @@ export default function CreateCourse() {
                                                                             if (mIdx === modIdx) {
                                                                                 const newLessons = mod.lessons.map((les, lIdx) => {
                                                                                     if (lIdx === lesIdx) {
-                                                                                        const { liveClassLink, liveClassDate, ...rest } = les;
+                                                                                        const { liveClassLink: _link, liveClassDate: _date, ...rest } = les;
                                                                                         return rest;
                                                                                     }
                                                                                     return les;
@@ -472,7 +481,7 @@ export default function CreateCourse() {
                                                                             if (mIdx === modIdx) {
                                                                                 const newLessons = mod.lessons.map((les, lIdx) => {
                                                                                     if (lIdx === lesIdx) {
-                                                                                        const { assignmentPrompt, ...rest } = les;
+                                                                                        const { assignmentPrompt: _prompt, ...rest } = les;
                                                                                         return rest;
                                                                                     }
                                                                                     return les;
@@ -573,6 +582,7 @@ export default function CreateCourse() {
                                                                             setForm({ ...form, syllabus: newSyllabus });
                                                                         }}
                                                                         placeholder="Enter question"
+                                                                        required
                                                                         className="input input-bordered input-sm mb-2"
                                                                     />
 
@@ -599,6 +609,7 @@ export default function CreateCourse() {
                                                                                         setForm({ ...form, syllabus: newSyllabus });
                                                                                     }}
                                                                                     placeholder={`Option ${optIdx + 1}`}
+                                                                                    required
                                                                                     className="input input-bordered input-sm flex-1"
                                                                                 />
                                                                             </div>

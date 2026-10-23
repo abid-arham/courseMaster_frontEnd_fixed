@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
     LayoutDashboard,
     BookOpen,
@@ -14,7 +14,6 @@ import {
 
 export default function AdminSidebar() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const location = useLocation();
 
     const Item = ({ to, label, Icon, end = true, onClick, showLabel = true }) => {
         const linkClass = ({ isActive: navIsActive }) => {
@@ -43,6 +42,7 @@ export default function AdminSidebar() {
 
     const menuItems = [
         { to: "/admin", label: "Overview", Icon: LayoutDashboard, end: true },
+        { to: "/admin/courses", label: "Manage Courses", Icon: BookOpen, end: true },
         { to: "/admin/courses/create", label: "Add Course", Icon: PlusCircle, end: true },
         { to: "/admin/video-classes", label: "Video Classes", Icon: Video, end: true },
         { to: "/admin/enrollments", label: "Enrollments", Icon: Users, end: true },
