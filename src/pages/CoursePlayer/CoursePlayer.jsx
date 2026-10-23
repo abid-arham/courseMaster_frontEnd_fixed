@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCourseById } from "../../store/slices/coursesSlice";
-import { completeLessonAsync, fetchMyEnrollments } from "../../store/slices/enrollmentSlice";
-import { getMyEnrollments } from "../../services/enrollment.api";
+import { completeLessonAsync } from "../../store/slices/enrollmentSlice";
 import { submitAssignment } from "../../services/assignment.api";
 import { submitQuiz as submitQuizAPI } from "../../services/quiz.api";
 
@@ -47,26 +46,18 @@ const convertToEmbedUrl = (url) => {
 export default function CoursePlayer() {
     const { id } = useParams();
     const dispatch = useDispatch();
-    const [enrollment, setEnrollment] = useState(null);
     const [selectedModule, setSelectedModule] = useState(0);
     const [selectedLesson, setSelectedLesson] = useState(0);
     const [loading, setLoading] = useState(true);
 
     const { currentCourse } = useSelector((state) => state.courses);
+    // MainLayout already loads the enrollments; read this course's row from the
+    // store rather than firing a duplicate request here
+    const { enrollments } = useSelector((state) => state.enrollment);
+    const enrollment = enrollments.find((e) => e.course?._id === id) || null;
 
     useEffect(() => {
         dispatch(fetchCourseById(id)).then(() => setLoading(false));
-
-        const fetchEnrollment = async () => {
-            try {
-                const res = await getMyEnrollments();
-                const userEnroll = res.data.find((e) => e.course?._id === id);
-                setEnrollment(userEnroll);
-            } catch (err) {
-                console.error("Failed to load enrollment:", err);
-            }
-        };
-        fetchEnrollment();
     }, [id, dispatch]);
 
     const handleMarkComplete = async () => {
@@ -77,23 +68,14 @@ export default function CoursePlayer() {
         if (!currentLesson) return;
 
         try {
-            const result = await dispatch(
+            // the fulfilled reducer swaps the updated row into the store, which
+            // is what this component and the dashboard both render from
+            await dispatch(
                 completeLessonAsync({
                     enrollmentId: enrollment._id,
                     lessonId: currentLesson._id,
                 })
             ).unwrap();
-
-            if (result) setEnrollment(result);
-            else {
-                // fallback: re-fetch
-                const res = await getMyEnrollments();
-                const userEnroll = res.data.find((e) => e.course?._id === id);
-                setEnrollment(userEnroll);
-            }
-
-            // refresh global enrollments for dashboard
-            dispatch(fetchMyEnrollments());
         } catch (err) {
             console.error("Failed to mark lesson complete:", err);
         }
@@ -113,6 +95,10 @@ export default function CoursePlayer() {
 
     const module = currentCourse.syllabus?.[selectedModule];
     const lesson = module?.lessons?.[selectedLesson];
+    // completedLessons holds lesson ids, so compare against the id
+    const isLessonComplete = !!enrollment?.progress?.completedLessons
+        ?.map(String)
+        .includes(String(lesson?._id));
 
     return (
         <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4">
@@ -139,9 +125,9 @@ export default function CoursePlayer() {
                         <div className="card bg-base-100 shadow">
                             <div className="card-body p-3 sm:p-6">
                                 <h3 className="card-title text-base sm:text-lg md:text-xl break-words">{lesson.title}</h3>
-                                <div className="bg-base-300 rounded overflow-hidden mt-2 sm:mt-4">
+                                <div className="aspect-video bg-base-300 rounded overflow-hidden mt-2 sm:mt-4">
                                     <iframe
-                                        style={{ height: '700px', width: '300px' }}
+                                        className="w-full h-full"
                                         src={convertToEmbedUrl(lesson.videoUrl)}
                                         title={lesson.title}
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -152,10 +138,10 @@ export default function CoursePlayer() {
 
                                 <button
                                     onClick={handleMarkComplete}
-                                    disabled={!!enrollment?.progress?.completedLessons?.includes(lesson)}
-                                    className={`btn btn-sm sm:btn-md ${enrollment?.progress?.completedLessons?.includes(lesson) ? "btn-disabled" : "btn-success"} mt-3 sm:mt-4 w-full sm:w-auto`}
+                                    disabled={isLessonComplete}
+                                    className={`btn btn-sm sm:btn-md ${isLessonComplete ? "btn-disabled" : "btn-success"} mt-3 sm:mt-4 w-full sm:w-auto`}
                                 >
-                                    {enrollment?.progress?.completedLessons?.includes(lesson) ? "Completed ✓" : "✓ Mark as Complete"}
+                                    {isLessonComplete ? "Completed ✓" : "✓ Mark as Complete"}
                                 </button>
                             </div>
                         </div>
@@ -214,7 +200,7 @@ export default function CoursePlayer() {
 
                         <div className="space-y-2 sm:space-y-3 max-h-[40vh] sm:max-h-[50vh] lg:max-h-[70vh] overflow-y-auto">
                             {currentCourse.syllabus?.map((mod, modIdx) => (
-                                <div key={modIdx} className="space-y-2">
+                                <div key={mod._id || modIdx} className="space-y-2">
                                     <button
                                         onClick={() => {
                                             setSelectedModule(modIdx);
@@ -234,15 +220,11 @@ export default function CoursePlayer() {
                                                 const hasAssignment = !!les.assignmentPrompt;
                                                 const hasQuiz = les.quiz && les.quiz.length > 0;
                                                 const hasLiveClass = !!les.liveClassLink;
-                                                const isCompleted = enrollment?.progress?.completedLessons?.includes(les._id);
-                                                
-                                                // Check if live class is upcoming
-                                                const isUpcoming = hasLiveClass && les.liveClassDate && new Date(les.liveClassDate) > new Date();
-                                                const liveClassDate = hasLiveClass && les.liveClassDate ? new Date(les.liveClassDate) : null;
+                                                const isCompleted = !!enrollment?.progress?.completedLessons?.map(String).includes(String(les._id));
 
                                                 return (
                                                     <button
-                                                        key={lesIdx}
+                                                        key={les._id || lesIdx}
                                                         onClick={() => setSelectedLesson(lesIdx)}
                                                         className={`w-full text-left text-sm p-2 rounded transition flex items-center justify-between gap-2 ${selectedLesson === lesIdx
                                                             ? "bg-secondary text-secondary-content"
@@ -280,7 +262,6 @@ export default function CoursePlayer() {
 }
 
 function AssignmentSubmission({ courseId, lessonId, prompt, enrollment, onComplete }) {
-    const dispatch = useDispatch();
     const [answer, setAnswer] = useState("");
     const [submitted, setSubmitted] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -348,8 +329,6 @@ function AssignmentSubmission({ courseId, lessonId, prompt, enrollment, onComple
             if (enrollment && onComplete) {
                 try {
                     await onComplete();
-                    // Refresh enrollments for dashboard
-                    dispatch(fetchMyEnrollments());
                 } catch (err) {
                     console.error("Failed to mark lesson complete:", err);
                 }
@@ -382,7 +361,7 @@ function AssignmentSubmission({ courseId, lessonId, prompt, enrollment, onComple
         switch (status) {
             case "reviewed":
                 return <span className="badge badge-success">Reviewed</span>;
-            case "pending":
+            case "submitted":
                 return <span className="badge badge-warning">Pending Review</span>;
             default:
                 return <span className="badge badge-ghost">{status || "Pending"}</span>;
@@ -493,7 +472,7 @@ function AssignmentSubmission({ courseId, lessonId, prompt, enrollment, onComple
                     </form>
                 )}
 
-                {submitted && !previousSubmission && (
+                {submitted && (
                     <div className="alert alert-success mt-4">
                         <span>✓ Assignment submitted successfully!</span>
                     </div>
@@ -504,7 +483,6 @@ function AssignmentSubmission({ courseId, lessonId, prompt, enrollment, onComple
 }
 
 function QuizInterface({ quiz, courseId, lessonId, enrollment, onComplete }) {
-    const dispatch = useDispatch();
     const [answers, setAnswers] = useState({});
     const [submitted, setSubmitted] = useState(false);
     const [score, setScore] = useState(0);
@@ -561,7 +539,7 @@ function QuizInterface({ quiz, courseId, lessonId, enrollment, onComplete }) {
 
     const handleAnswer = (questionIdx, optionIdx) => {
         // Always allow answering - if there's a previous submission, reset submitted state for retake
-        if (submitted && previousSubmission) {
+        if (previousSubmission) {
             setSubmitted(false);
         }
         setAnswers({ ...answers, [questionIdx]: optionIdx });
@@ -612,6 +590,9 @@ function QuizInterface({ quiz, courseId, lessonId, enrollment, onComplete }) {
                 percent: result.percent,
                 lessonId: lessonId,
                 answers: answersArray,
+                // the server returns the key with the grade, which is what the
+                // answer review below renders
+                correctAnswers: result.correctAnswers,
                 createdAt: new Date(),
             };
             setPreviousSubmission(submissionResult);
@@ -620,8 +601,6 @@ function QuizInterface({ quiz, courseId, lessonId, enrollment, onComplete }) {
             if (enrollment && onComplete) {
                 try {
                     await onComplete();
-                    // Refresh enrollments for dashboard
-                    dispatch(fetchMyEnrollments());
 
                     // Show success message
                     console.log(`Quiz submitted successfully! Score: ${result.percent}% (${result.score}/${result.total})`);
@@ -703,7 +682,10 @@ function QuizInterface({ quiz, courseId, lessonId, enrollment, onComplete }) {
                 <div className="space-y-4 sm:space-y-6 mt-3 sm:mt-4">
                     {quiz.map((question, qIdx) => {
                         const userAnswer = answers[qIdx];
-                        const isCorrect = userAnswer === question.correctIndex;
+                        // the answer key is not part of the public course payload any
+                        // more — it comes back with the graded submission instead
+                        const correctIndex = previousSubmission?.correctAnswers?.[qIdx];
+                        const isCorrect = correctIndex !== undefined && userAnswer === correctIndex;
                         const showResults = submitted && previousSubmission;
                         const showReview = previousSubmission && !submitted;
 
@@ -743,7 +725,7 @@ function QuizInterface({ quiz, courseId, lessonId, enrollment, onComplete }) {
                                                     Your answer: <span className="text-error">{question.options[userAnswer]}</span>
                                                 </p>
                                                 <p className="text-xs text-base-content/70">
-                                                    Correct answer: <span className="text-success font-semibold">{question.options[question.correctIndex]}</span>
+                                                    Correct answer: <span className="text-success font-semibold">{question.options[correctIndex]}</span>
                                                 </p>
                                             </div>
                                         )}
@@ -752,23 +734,23 @@ function QuizInterface({ quiz, courseId, lessonId, enrollment, onComplete }) {
 
                                 {showReview && !loading && (
                                     <p className="text-xs mb-2 text-base-content/70">
-                                        💡 Correct answer: <span className="font-semibold">{question.options[question.correctIndex]}</span>
+                                        💡 Correct answer: <span className="font-semibold">{question.options[correctIndex]}</span>
                                     </p>
                                 )}
                                 <div className="space-y-2">
                                     {question.options?.map((option, oIdx) => (
                                         <label
                                             key={oIdx}
-                                            className={`cursor-pointer flex gap-2 sm:gap-3 p-2 rounded transition ${showResults && oIdx === question.correctIndex ? 'bg-success/20' :
+                                            className={`cursor-pointer flex gap-2 sm:gap-3 p-2 rounded transition ${showResults && oIdx === correctIndex ? 'bg-success/20' :
                                                 showResults && oIdx === userAnswer && !isCorrect ? 'bg-error/20' :
-                                                    showReview && oIdx === question.correctIndex ? 'bg-success/20' :
+                                                    showReview && oIdx === correctIndex ? 'bg-success/20' :
                                                         showReview && oIdx === userAnswer && !isCorrect ? 'bg-error/20' :
                                                             'hover:bg-base-200'
                                                 }`}
                                         >
                                             <input
                                                 type="radio"
-                                                name="quiz-option"
+                                                name={`question-${qIdx}`}
                                                 checked={answers[qIdx] === oIdx}
                                                 onChange={() => {
                                                     if (!loading) {
@@ -779,13 +761,13 @@ function QuizInterface({ quiz, courseId, lessonId, enrollment, onComplete }) {
                                                 className="radio radio-sm flex-shrink-0"
                                             />
                                             <span className="text-xs sm:text-sm flex-1">{option}</span>
-                                            {showResults && oIdx === question.correctIndex && (
+                                            {showResults && oIdx === correctIndex && (
                                                 <span className="text-success font-semibold">✓ Correct Answer</span>
                                             )}
                                             {showResults && oIdx === userAnswer && !isCorrect && (
                                                 <span className="text-error font-semibold">✗ Your Answer</span>
                                             )}
-                                            {showReview && !loading && oIdx === question.correctIndex && (
+                                            {showReview && !loading && oIdx === correctIndex && (
                                                 <span className="text-success">✓ Correct</span>
                                             )}
                                             {showReview && !loading && oIdx === userAnswer && !isCorrect && (
@@ -863,7 +845,8 @@ function QuizInterface({ quiz, courseId, lessonId, enrollment, onComplete }) {
                                 <div className="space-y-2">
                                     {quiz.map((question, qIdx) => {
                                         const userAnswer = answers[qIdx];
-                                        const isCorrect = userAnswer === question.correctIndex;
+                                        const correctIndex = previousSubmission?.correctAnswers?.[qIdx];
+                                        const isCorrect = correctIndex !== undefined && userAnswer === correctIndex;
                                         return (
                                             <div
                                                 key={qIdx}
@@ -884,7 +867,7 @@ function QuizInterface({ quiz, courseId, lessonId, enrollment, onComplete }) {
                                                         </p>
                                                         {!isCorrect && (
                                                             <p className="text-xs mt-1 text-success">
-                                                                Correct answer: <span className="font-semibold">{question.options[question.correctIndex]}</span>
+                                                                Correct answer: <span className="font-semibold">{question.options[correctIndex]}</span>
                                                             </p>
                                                         )}
                                                     </div>
