@@ -32,7 +32,9 @@ export default function EditCourse() {
     // seeds the editable form from the fetched course — a deliberate
     // server-data-into-local-form sync, which this rule cannot distinguish
     useEffect(() => {
-        if (currentCourse) {
+        // only seed from the course actually being edited — `currentCourse` can
+        // still hold the previously viewed course while this one is in flight
+        if (currentCourse?._id === id) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setForm({
                 title: currentCourse.title || "",
@@ -46,7 +48,7 @@ export default function EditCourse() {
                 syllabus: structuredClone(currentCourse.syllabus || []),
             });
         }
-    }, [currentCourse]);
+    }, [currentCourse, id]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -111,7 +113,7 @@ export default function EditCourse() {
 
     // without this the form rendered empty and "Update Course" would submit
     // blank values over the existing record
-    if (!currentCourse) {
+    if (currentCourse?._id !== id) {
         return (
             <div role="alert" className="alert alert-error">
                 <span>{detailError || "Course not found."}</span>
